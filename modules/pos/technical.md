@@ -17,3 +17,8 @@
 
 Verifica campos y permisos en cada instancia, especialmente si existen
 modulos personalizados o una version distinta de Odoo.
+
+Las skills de PoS deben ser `read_only` salvo una necesidad concreta. Crear o
+modificar `pos.order`, `pos.payment` o `pos.session` es una accion destructiva
+para este proyecto y requiere preview, intencion explicita y confirmacion; no
+se habilita por `ODOO_DRAFT_WORKFLOW = direct`.

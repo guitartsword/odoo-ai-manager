@@ -6,9 +6,13 @@
 - El dominio del negocio no debe depender de XML-RPC, JSON-2 o de un proveedor
   de IA concreto.
 - Los adaptadores externos normalizan respuestas a entidades internas.
-- Toda skill declara `read_only` o `mutation` en su manifiesto.
-- Las mutaciones requieren confirmacion, trazabilidad y pruebas de rollback o
-  de fallo seguro.
+- Toda skill declara `read_only` o `mutation` en su manifiesto. Una skill de
+  mutacion tambien declara `mutation_kind = "draft"` o `"destructive"`.
+- Los borradores siguen `ODOO_DRAFT_WORKFLOW`: `review` exige vista previa y
+  confirmacion por operacion; `direct` permite crear solo borradores
+  previamente allowlisted sin esa aprobacion adicional.
+- Las acciones destructivas siempre requieren confirmacion, trazabilidad y
+  pruebas de rollback o de fallo seguro.
 
 ## Conexion a Odoo
 

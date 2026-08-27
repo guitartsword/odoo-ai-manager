@@ -11,6 +11,8 @@ contables sin confundir documentos comerciales con asientos publicados.
 - Factura, nota de credito y pago deben analizarse por separado.
 - Todo total debe indicar compania, moneda, impuestos y periodo.
 - Publicar, conciliar o modificar un asiento es una mutacion.
+- Una factura en borrador puede seguir el flujo de borradores elegido; publicar
+  una factura o registrar/conciliar un pago requiere confirmacion explicita.
 
 ## Preguntas frecuentes
 

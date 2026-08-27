@@ -8,4 +8,6 @@
 - `res.partner`: proveedores.
 
 Validar estados, companias, almacenes y campos personalizados antes de
-publicar una skill. Confirmar una orden o modificar cantidades es `mutation`.
+publicar una skill. Crear una RFQ u orden no confirmada es `mutation` con
+`mutation_kind = "draft"` y sigue `ODOO_DRAFT_WORKFLOW`. Confirmar una orden,
+modificar cantidades o validar una recepcion es `destructive`.

@@ -34,6 +34,21 @@ como alcance por defecto, agrega `allowed_company_ids` al contexto y filtra
 las ordenes por esa compania. Si una operacion necesita otra compania, debe
 declararla explicitamente y mantenerla dentro de los permisos del usuario.
 
+## Configuracion local
+
+El configurador se inicia con `uv run odoo-ai-manager configure` y escucha en
+`127.0.0.1` por defecto. Pide version, dominio HTTPS, token, correo y base de
+datos, y escribe esos valores en `.env` sin volver a mostrar el token.
+
+La pregunta opcional sobre borradores guarda `ODOO_DRAFT_WORKFLOW`:
+
+- `review`: vista previa y confirmacion antes de cada borrador.
+- `direct`: permite crear borradores allowlisted directamente; es una opcion
+  pensada para usuarios avanzados de Odoo.
+
+El valor por defecto es `review`. Esta preferencia no elimina la confirmacion
+obligatoria para acciones destructivas.
+
 ## Versiones posteriores
 
 Odoo 19 documenta la API externa JSON-2:

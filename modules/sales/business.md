@@ -13,6 +13,9 @@ y cumplimiento comercial.
   cancelaciones.
 - Cliente activo: definir si depende de compras recientes, estado del contacto
   o una regla comercial.
+- Crear una cotizacion o pedido sin confirmar puede seguir el flujo de
+  borradores elegido por la persona. Confirmar el pedido requiere aprobacion
+  explicita.
 
 ## Preguntas frecuentes
 

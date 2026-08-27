@@ -6,7 +6,7 @@ from xmlrpc.client import Fault, ProtocolError, SafeTransport, ServerProxy
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from odoo_ai_manager.config import OdooSettings
-from odoo_ai_manager.domain.models import AccessMode
+from odoo_ai_manager.domain.models import AccessMode, DraftWorkflow, MutationKind
 
 
 class OdooAuthenticationError(RuntimeError):
@@ -44,13 +44,16 @@ class XmlRpcOdooClient:
         settings: OdooSettings,
         *,
         access_mode: AccessMode = AccessMode.READ_ONLY,
-        allowed_mutations: Sequence[tuple[str, str]] = (),
+        allowed_mutations: Mapping[tuple[str, str], MutationKind] | None = None,
         common_proxy: Any | None = None,
         object_proxy: Any | None = None,
     ) -> None:
         self._settings = settings
         self.access_mode = AccessMode(access_mode)
-        self._allowed_mutations = frozenset(allowed_mutations)
+        self._allowed_mutations = {
+            key: MutationKind(value)
+            for key, value in (allowed_mutations or {}).items()
+        }
         base_url = str(settings.url).rstrip("/")
         transport = _TimeoutSafeTransport(settings.timeout_seconds)
         self._common_proxy = (
@@ -167,18 +170,24 @@ class XmlRpcOdooClient:
         kwargs: Mapping[str, Any] | None = None,
         *,
         confirmed: bool = False,
+        kind: MutationKind = MutationKind.DESTRUCTIVE,
     ) -> Any:
+        kind = MutationKind(kind)
         if self.access_mode is not AccessMode.MUTATION:
             raise MutationNotAllowedError(
                 "El cliente esta en modo read_only; crea una conexion mutation."
             )
-        if not confirmed:
+        requires_confirmation = kind is MutationKind.DESTRUCTIVE or (
+            kind is MutationKind.DRAFT
+            and self._settings.draft_workflow is DraftWorkflow.REVIEW
+        )
+        if requires_confirmation and not confirmed:
             raise MutationNotAllowedError(
-                "Una mutacion requiere confirmacion explicita."
+                "Esta mutacion requiere confirmacion explicita."
             )
-        if (model, method) not in self._allowed_mutations:
+        if self._allowed_mutations.get((model, method)) is not kind:
             raise MutationNotAllowedError(
-                f"La mutacion {model}.{method} no esta aprobada por la skill."
+                f"La mutacion {model}.{method} no esta aprobada para kind={kind.value}."
             )
         mutation_kwargs = dict(kwargs or {})
         mutation_kwargs["context"] = self._merge_context(

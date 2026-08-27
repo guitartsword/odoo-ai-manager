@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import shutil
 import sys
+from pathlib import Path
 from typing import Sequence
 
 from odoo_ai_manager.application.skill_catalog import ContextLoader, SkillCatalog
@@ -18,6 +19,32 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "doctor",
         help="Revisa que Python, uv y git esten disponibles.",
+    )
+
+    configure_parser = subparsers.add_parser(
+        "configure",
+        help="Configura Odoo mediante un formulario web local.",
+    )
+    configure_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Interfaz donde escucha el configurador (por defecto localhost).",
+    )
+    configure_parser.add_argument(
+        "--port",
+        type=int,
+        default=8765,
+        help="Puerto HTTP local (por defecto 8765).",
+    )
+    configure_parser.add_argument(
+        "--env-path",
+        type=Path,
+        help="Ruta del archivo .env; por defecto, la raiz del proyecto.",
+    )
+    configure_parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="No abrir el navegador automaticamente.",
     )
 
     skills_parser = subparsers.add_parser("skills", help="Inspecciona skills.")
@@ -79,7 +106,11 @@ def _run_skill_list(module: str | None) -> int:
         print("No hay skills para el filtro indicado.")
         return 0
     for manifest in manifests:
-        print(f"{manifest.id}\t{manifest.access.value}\t{manifest.description}")
+        mutation_kind = manifest.mutation_kind.value if manifest.mutation_kind else "-"
+        print(
+            f"{manifest.id}\t{manifest.access.value}\t{mutation_kind}\t"
+            f"{manifest.status.value}\t{manifest.description}"
+        )
     return 0
 
 
@@ -99,11 +130,25 @@ def _run_report(args: argparse.Namespace) -> int:
     return cli_main(forwarded_args)
 
 
+def _run_configure(args: argparse.Namespace) -> int:
+    from odoo_ai_manager.configuration import run_configuration_server
+
+    run_configuration_server(
+        host=args.host,
+        port=args.port,
+        env_path=args.env_path or project_root() / ".env",
+        open_browser=not args.no_browser,
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "doctor":
             return _run_doctor()
+        if args.command == "configure":
+            return _run_configure(args)
         if args.command == "skills":
             if args.skills_command == "list":
                 return _run_skill_list(args.module)

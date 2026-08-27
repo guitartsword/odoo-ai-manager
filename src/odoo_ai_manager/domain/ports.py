@@ -3,7 +3,7 @@ from datetime import date
 from typing import Any, Protocol
 from zoneinfo import ZoneInfo
 
-from .models import AccessMode
+from .models import AccessMode, MutationKind
 
 
 class OdooReadClient(Protocol):
@@ -47,5 +47,6 @@ class OdooMutationClient(OdooReadClient, Protocol):
         kwargs: Mapping[str, Any] | None = None,
         *,
         confirmed: bool = False,
+        kind: MutationKind = MutationKind.DESTRUCTIVE,
     ) -> Any:
-        """Ejecuta una mutacion solo tras una confirmacion explicita."""
+        """Ejecuta una mutacion segun su tipo y flujo configurado."""

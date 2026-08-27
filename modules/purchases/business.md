@@ -10,6 +10,8 @@ recepciones pendientes.
 - Solicitud de cotizacion no es una compra confirmada.
 - Una orden confirmada no necesariamente fue recibida ni facturada.
 - Proveedor, producto, almacen y fecha de entrega deben distinguirse.
+- Crear una solicitud de cotizacion u orden en borrador puede seguir el flujo
+  elegido por la persona; confirmar la orden requiere confirmacion explicita.
 
 ## Preguntas frecuentes
 

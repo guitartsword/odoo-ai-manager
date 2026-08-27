@@ -15,5 +15,7 @@ skill.
 
 ## Skills
 
-Las consultas deben ser `read_only`. Crear o confirmar pedidos requiere una
-skill `mutation`, preview y confirmacion.
+Las consultas deben ser `read_only`. Crear una cotizacion o pedido no
+confirmado es `mutation_kind = "draft"` y sigue `ODOO_DRAFT_WORKFLOW`.
+Confirmar pedidos o ejecutar acciones que cambien su estado es destructivo y
+requiere preview y confirmacion.

@@ -6,10 +6,18 @@ reutilizables para trabajar con Odoo mediante IA.
 La idea no es dar acceso directo al codigo a una persona no tecnica. La IA
 lee el conocimiento del negocio, selecciona una skill aprobada y ejecuta una
 herramienta con permisos explicitos. Las consultas son `read_only` por
-defecto. Las acciones que cambian Odoo deben vivir en `mutation` y requieren
-una vista previa y confirmacion expresa.
+defecto. Las mutaciones se clasifican como `draft` o `destructive`: los
+borradores siguen una preferencia configurable y las acciones destructivas
+requieren siempre vista previa y confirmacion expresa.
 
 ## Inicio rapido
+
+Desde una terminal nueva:
+
+```powershell
+git clone https://github.com/guitartsword/odoo-ai-manager.git
+Set-Location odoo-ai-manager
+```
 
 Requisitos del host: Python 3.12+, `uv` y `git`. En este host ya estan
 disponibles. Para revisar o instalar dependencias:
@@ -19,8 +27,20 @@ disponibles. Para revisar o instalar dependencias:
 uv run odoo-ai-manager doctor
 ```
 
-Configura las credenciales en `.env` usando `.env.example` como referencia.
-Nunca subas `.env`, API keys, reportes reales ni datos de clientes.
+Configura la conexion con el formulario web local:
+
+```powershell
+uv run odoo-ai-manager configure
+```
+
+El formulario pide version de Odoo, dominio HTTPS, token/API key, correo y
+base de datos. Tambien pregunta opcionalmente como trabajar con borradores:
+`review` muestra y confirma cada uno; `direct` los crea sin aprobacion
+adicional y esta pensado para usuarios avanzados. Las acciones destructivas no
+se benefician de esta opcion. Nunca subas `.env`, API keys, reportes reales ni
+datos de clientes.
+
+Tambien puedes usar `.env.example` como referencia.
 
 ```powershell
 uv sync
@@ -52,6 +72,29 @@ src/odoo_ai_manager/               Codigo compartido y adaptadores
 docs/                               Arquitectura, seguridad y API de Odoo
 ```
 
+## Alcance del starter kit
+
+Este repositorio no intenta implementar todos los modulos ni todas las
+personalizaciones de Odoo. Es una base para trabajar con un agente de IA desde
+el checkout: `knowledge/`, `modules/` y `skills/` contienen ejemplos de
+estructura, reglas y una primera implementacion, no una lista cerrada de lo
+que el agente puede hacer.
+
+Un agente puede trabajar tambien con modulos nativos de Community o Enterprise
+y con extensiones de terceros. Para una necesidad nueva debe:
+
+1. Leer `AGENTS.md` y el contexto disponible.
+2. Inspeccionar modelos, campos, estados, permisos y relaciones de esa
+   instancia de Odoo.
+3. Crear una consulta o herramienta en `scripts/temporary` mientras se valida.
+4. Promoverla a una skill documentada y probada si se vuelve reutilizable.
+
+OpenCode, Codex o Claude Code se ejecutan desde la raiz del repositorio. El
+proyecto no obliga a usar un proveedor de IA, no incluye una API key del
+proveedor ni pretende ser una aplicacion final. El agente aporta la interfaz
+de lenguaje y este repositorio aporta contexto, patrones, cliente Odoo y
+guardrails.
+
 ## Modulos iniciales
 
 - `sales`: cotizaciones, pedidos y ventas.
@@ -70,17 +113,22 @@ transversal y los documentos del modulo correspondiente. Debe indicar que
 skill utilizo, que rango de fechas y compania aplico, y distinguir entre dato
 consultado, calculo e inferencia.
 
-Ejemplos de preguntas que la primera version puede preparar:
+Ejemplos de preguntas que la primera skill puede resolver:
 
 - "Cuanto vendimos ayer por metodo de pago?"
 - "Que productos tienen menos existencia?"
 - "Que compras estan pendientes de recibir?"
 - "Genera un Excel de ventas del mes por tienda."
 
-Para una accion de mutacion, la IA debe mostrar el cambio propuesto, pedir
-confirmacion y registrar el resultado. Nunca debe crear productos, ajustar
-inventario, subir imagenes o publicar asientos solo por interpretar una
-pregunta ambigua.
+Las preguntas sobre otros modelos o extensiones pueden implementarse siguiendo
+el mismo patron; primero hay que verificar la version, los modulos instalados,
+los campos y los permisos del usuario de Odoo.
+
+Para una accion de mutacion, la IA debe clasificar el cambio. Los borradores
+pueden seguir `ODOO_DRAFT_WORKFLOW`; crear productos, ajustar inventario,
+subir imagenes, validar documentos o publicar asientos siempre requieren
+preview y confirmacion, y nunca deben ejecutarse por interpretar una pregunta
+ambigua.
 
 ## API de Odoo y versiones
 

@@ -2,6 +2,8 @@ from pydantic import AliasChoices, AnyHttpUrl, Field, SecretStr, field_validator
 from pydantic.types import PositiveInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from odoo_ai_manager.domain.models import DraftWorkflow
+
 
 class OdooSettings(BaseSettings):
     """Configuracion de conexion. Nunca se imprime la credencial."""
@@ -20,7 +22,13 @@ class OdooSettings(BaseSettings):
     username: str = Field(
         validation_alias=AliasChoices("ODOO_USERNAME", "ODOO_USER")
     )
-    password: SecretStr = Field(validation_alias="ODOO_PASSWORD")
+    version: str | None = Field(
+        default=None,
+        validation_alias="ODOO_VERSION",
+    )
+    password: SecretStr = Field(
+        validation_alias=AliasChoices("ODOO_TOKEN", "ODOO_PASSWORD")
+    )
     company_id: int | None = Field(
         default=None,
         validation_alias=AliasChoices("ODOO_COMPANY_ID", "ODOO_COMPANY"),
@@ -28,6 +36,10 @@ class OdooSettings(BaseSettings):
     timeout_seconds: PositiveInt = Field(
         default=30,
         validation_alias="ODOO_TIMEOUT_SECONDS",
+    )
+    draft_workflow: DraftWorkflow = Field(
+        default=DraftWorkflow.REVIEW,
+        validation_alias="ODOO_DRAFT_WORKFLOW",
     )
 
     @field_validator("url")

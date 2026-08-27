@@ -11,7 +11,13 @@ lotes, series y reabastecimiento.
 - Un movimiento creado no necesariamente esta validado.
 - La ubicacion y la fecha de corte son obligatorias para interpretar una
   cantidad.
-- Ajustar existencias o validar transferencias es una mutacion de alto riesgo.
+- Una transferencia preparada puede ser un borrador; validar la transferencia
+  o ajustar existencias es una mutacion de alto riesgo.
+- Si existen varios almacenes, la IA debe preguntar cual corresponde antes de
+  preparar una transferencia.
+- Crear un producto requiere confirmar tipo (servicio, consumible o producto),
+  seguimiento de inventario, uso en PoS, categoria y si se vende o compra.
+  Debe mostrar un producto similar y un preview antes de crearlo.
 
 ## Preguntas frecuentes
 

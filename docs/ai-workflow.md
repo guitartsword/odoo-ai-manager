@@ -21,8 +21,20 @@ datos de pagos, ventas e inventario deben poder reconciliarse con Odoo.
 
 ## Mutacion
 
-Crear productos, subir fotos, ajustar inventario, confirmar compras o tocar
-contabilidad son acciones de alto riesgo. El agente debe:
+Primero clasifica la operacion:
+
+- `draft`: crea un documento editable, como una cotizacion, RFQ, factura en
+  borrador o transferencia preparada.
+- `destructive`: valida, confirma, publica, concilia, ajusta existencias, crea
+  un producto o afecta una orden/sesion de PoS.
+
+Para un `draft`, el configurador registra `ODOO_DRAFT_WORKFLOW`:
+
+- `review`: explicar la accion, mostrar preview, pedir confirmacion y ejecutar.
+- `direct`: ejecutar solo la skill y el metodo allowlisted; informar el
+  resultado y registrar la decision de configuracion.
+
+Para una accion `destructive`, siempre se debe:
 
 1. Explicar la accion y mostrar los registros afectados.
 2. Mostrar los valores nuevos y los que no cambiara.

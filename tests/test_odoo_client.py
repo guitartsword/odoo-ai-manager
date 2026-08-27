@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from odoo_ai_manager.config import OdooSettings
-from odoo_ai_manager.domain.models import AccessMode
+from odoo_ai_manager.domain.models import AccessMode, DraftWorkflow, MutationKind
 from odoo_ai_manager.infrastructure.odoo.xmlrpc import (
     MutationNotAllowedError,
     XmlRpcOdooClient,
@@ -49,12 +49,15 @@ class FakeObjectProxy:
         return True
 
 
-def make_settings() -> OdooSettings:
+def make_settings(
+    draft_workflow: DraftWorkflow = DraftWorkflow.REVIEW,
+) -> OdooSettings:
     return OdooSettings(
         url="https://odoo.example.com",
         database="odoo",
         username="integration@example.com",
         password="secret",
+        draft_workflow=draft_workflow,
     )
 
 
@@ -86,20 +89,87 @@ def test_mutation_client_requires_explicit_confirmation() -> None:
     client = XmlRpcOdooClient(
         make_settings(),
         access_mode=AccessMode.MUTATION,
-        allowed_mutations=[("product.product", "create")],
+        allowed_mutations={
+            ("purchase.order", "create"): MutationKind.DRAFT,
+        },
         common_proxy=FakeCommonProxy(),
         object_proxy=object_proxy,
     )
 
     with pytest.raises(MutationNotAllowedError):
-        client.execute_mutation("product.product", "create", [{"name": "Test"}])
+        client.execute_mutation("purchase.order", "create", [{"partner_id": 12}])
 
     result = client.execute_mutation(
-        "product.product",
+        "purchase.order",
         "create",
-        [{"name": "Test"}],
+        [{"partner_id": 12}],
         confirmed=True,
+        kind=MutationKind.DRAFT,
     )
 
     assert result is True
-    assert object_proxy.mutations[-1][0:2] == ("product.product", "create")
+    assert object_proxy.mutations[-1][0:2] == ("purchase.order", "create")
+
+
+def test_mutation_client_rejects_an_unapproved_destructive_operation() -> None:
+    client = XmlRpcOdooClient(
+        make_settings(),
+        access_mode=AccessMode.MUTATION,
+        allowed_mutations={
+            ("stock.picking", "create"): MutationKind.DRAFT,
+        },
+        common_proxy=FakeCommonProxy(),
+        object_proxy=FakeObjectProxy(),
+    )
+
+    with pytest.raises(MutationNotAllowedError):
+        client.execute_mutation(
+            "stock.picking",
+            "button_validate",
+            [[1]],
+            confirmed=True,
+            kind=MutationKind.DESTRUCTIVE,
+        )
+
+
+def test_direct_draft_workflow_skips_per_action_confirmation() -> None:
+    object_proxy = FakeObjectProxy()
+    client = XmlRpcOdooClient(
+        make_settings(DraftWorkflow.DIRECT),
+        access_mode=AccessMode.MUTATION,
+        allowed_mutations={
+            ("purchase.order", "create"): MutationKind.DRAFT,
+        },
+        common_proxy=FakeCommonProxy(),
+        object_proxy=object_proxy,
+    )
+
+    result = client.execute_mutation(
+        "purchase.order",
+        "create",
+        [{"partner_id": 12}],
+        kind=MutationKind.DRAFT,
+    )
+
+    assert result is True
+    assert object_proxy.mutations[-1][0:2] == ("purchase.order", "create")
+
+
+def test_direct_draft_workflow_does_not_bypass_destructive_confirmation() -> None:
+    client = XmlRpcOdooClient(
+        make_settings(DraftWorkflow.DIRECT),
+        access_mode=AccessMode.MUTATION,
+        allowed_mutations={
+            ("stock.picking", "button_validate"): MutationKind.DESTRUCTIVE,
+        },
+        common_proxy=FakeCommonProxy(),
+        object_proxy=FakeObjectProxy(),
+    )
+
+    with pytest.raises(MutationNotAllowedError):
+        client.execute_mutation(
+            "stock.picking",
+            "button_validate",
+            [[1]],
+            kind=MutationKind.DESTRUCTIVE,
+        )
