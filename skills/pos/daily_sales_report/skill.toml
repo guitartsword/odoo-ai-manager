@@ -1,0 +1,6 @@
+id = "pos.daily_sales_report"
+module = "pos"
+name = "daily_sales_report"
+description = "Genera un XLSX de ventas PoS y pagos por metodo para un periodo."
+access = "read_only"
+entrypoint = "odoo_ai_manager.modules.pos.daily_sales_report:generate_daily_sales_report"
