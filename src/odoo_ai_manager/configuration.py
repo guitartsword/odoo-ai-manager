@@ -6,10 +6,18 @@ import os
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 from urllib.parse import parse_qs
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationError,
+    field_validator,
+)
 
 from odoo_ai_manager.domain.models import DraftWorkflow
 
@@ -80,7 +88,50 @@ def save_dotenv(form: OdooConnectionForm, env_path: Path) -> None:
     os.replace(temporary_path, env_path)
 
 
-def render_config_page(values: Mapping[str, str] | None = None, *, message: str = "") -> str:
+_FIELD_LABELS = {
+    "odoo_version": "Version de Odoo",
+    "domain": "Dominio HTTPS de Odoo",
+    "token": "Token o API key",
+    "email": "Correo del usuario de Odoo",
+    "database": "Base de datos",
+    "draft_workflow": "Flujo de borradores",
+}
+
+
+def _validation_messages(error: ValidationError) -> list[str]:
+    messages: list[str] = []
+    for detail in error.errors():
+        location = detail.get("loc", ())
+        field_name = str(location[0]) if location else "formulario"
+        label = _FIELD_LABELS.get(field_name, "Formulario")
+        error_type = str(detail.get("type", ""))
+        if field_name == "token":
+            message = f"{label}: introduce el token o API key."
+        elif error_type == "missing":
+            message = f"{label}: completa este campo."
+        elif field_name == "domain":
+            message = f"{label}: usa una URL HTTPS valida, por ejemplo https://odoo.example.com."
+        elif field_name == "email":
+            message = f"{label}: escribe un correo valido."
+        elif field_name == "odoo_version":
+            message = f"{label}: indica una version, por ejemplo 16.0."
+        elif field_name == "database":
+            message = f"{label}: indica el nombre de la base de datos de Odoo."
+        elif field_name == "draft_workflow":
+            message = f"{label}: selecciona una opcion valida o dejalo sin elegir."
+        else:
+            message = f"{label}: revisa este valor."
+        if message not in messages:
+            messages.append(message)
+    return messages or ["Revisa los datos introducidos e intenta de nuevo."]
+
+
+def render_config_page(
+    values: Mapping[str, str] | None = None,
+    *,
+    message: str = "",
+    errors: Sequence[str] = (),
+) -> str:
     values = values or {}
 
     def escaped(name: str) -> str:
@@ -92,6 +143,22 @@ def render_config_page(values: Mapping[str, str] | None = None, *, message: str 
         draft_workflow = DraftWorkflow.REVIEW
 
     safe_message = html.escape(message, quote=True)
+    safe_errors = [html.escape(error, quote=True) for error in errors]
+    if safe_errors:
+        feedback = (
+            '<div class="message error" role="alert" aria-live="assertive">'
+            "<strong>No se pudo guardar la configuracion.</strong>"
+            "<p>Revisa estos datos:</p>"
+            f"<ul>{''.join(f'<li>{error}</li>' for error in safe_errors)}</ul>"
+            "</div>"
+        )
+    elif safe_message:
+        feedback = (
+            '<div class="message success" role="status" aria-live="polite">'
+            f"{safe_message}</div>"
+        )
+    else:
+        feedback = ""
     return f"""<!doctype html>
 <html lang="es">
 <head>
@@ -104,13 +171,17 @@ def render_config_page(values: Mapping[str, str] | None = None, *, message: str 
     input {{ box-sizing: border-box; margin-top: .35rem; padding: .65rem; width: 100%; }}
     input[type="radio"] {{ margin-right: .4rem; width: auto; }}
     button {{ margin-top: 1.5rem; padding: .7rem 1.2rem; }}
-    .message {{ background: #e8f5e9; padding: .75rem; }}
+    .message {{ border-radius: .3rem; margin: 1rem 0; padding: .85rem 1rem; }}
+    .message.success {{ background: #e8f5e9; border: 1px solid #66bb6a; color: #1b5e20; }}
+    .message.error {{ background: #ffebee; border: 1px solid #ef5350; color: #b71c1c; }}
+    .message p {{ margin-bottom: .4rem; }}
+    .message ul {{ margin-bottom: 0; }}
   </style>
 </head>
 <body>
   <h1>Configuracion de Odoo</h1>
   <p>Los datos se guardaran en un archivo <code>.env</code> local.</p>
-  {f'<p class="message">{safe_message}</p>' if safe_message else ''}
+  {feedback}
   <form method="post">
     <label>Version de Odoo
       <input name="odoo_version" required value="{escaped('odoo_version')}" placeholder="16.0">
@@ -181,6 +252,7 @@ class ConfigurationRequestHandler(BaseHTTPRequestHandler):
         if self.path != "/":
             self._send_html(404, "<h1>Not found</h1>")
             return
+        values: dict[str, str] = {}
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
             raw_body = self.rfile.read(content_length).decode("utf-8")
@@ -190,10 +262,32 @@ class ConfigurationRequestHandler(BaseHTTPRequestHandler):
             }
             form = OdooConnectionForm.model_validate(values)
             save_dotenv(form, self.env_path)
-        except Exception:
+        except ValidationError as error:
             self._send_html(
                 400,
-                render_config_page(values if "values" in locals() else {}, message="Revisa los valores introducidos."),
+                render_config_page(values, errors=_validation_messages(error)),
+            )
+            return
+        except OSError:
+            self._send_html(
+                500,
+                render_config_page(
+                    values,
+                    errors=[
+                        "No se pudo guardar el archivo .env. Revisa los permisos de la carpeta."
+                    ],
+                ),
+            )
+            return
+        except (UnicodeDecodeError, ValueError):
+            self._send_html(
+                400,
+                render_config_page(
+                    values,
+                    errors=[
+                        "No se pudo leer el formulario. Vuelve a cargar la pagina e intentalo de nuevo."
+                    ],
+                ),
             )
             return
         self._send_html(

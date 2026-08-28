@@ -1,6 +1,7 @@
 from pathlib import Path
 from threading import Thread
 from urllib.parse import urlencode
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from odoo_ai_manager.config import OdooSettings
@@ -56,6 +57,18 @@ def test_configuration_page_never_prefills_or_exposes_token() -> None:
     assert 'value="review" checked' in page
 
 
+def test_configuration_page_renders_errors_as_actionable_red_feedback() -> None:
+    page = render_config_page(
+        {"odoo_version": "16.0"},
+        errors=["Dominio HTTPS de Odoo: usa una URL HTTPS valida."],
+    )
+
+    assert 'class="message error"' in page
+    assert 'class="message success"' not in page
+    assert "Revisa estos datos:" in page
+    assert "Dominio HTTPS de Odoo" in page
+
+
 def test_configuration_form_can_record_direct_draft_workflow() -> None:
     form = make_form(DraftWorkflow.DIRECT)
 
@@ -71,6 +84,35 @@ def test_configuration_server_saves_form_submission(tmp_path: Path) -> None:
     try:
         with urlopen(url) as response:
             assert response.status == 200
+
+        invalid_request = Request(
+            url,
+            data=urlencode(
+                {
+                    "odoo_version": "",
+                    "domain": "http://odoo.example.com",
+                    "token": "",
+                    "email": "not-an-email",
+                    "database": "",
+                }
+            ).encode(),
+            method="POST",
+        )
+        try:
+            urlopen(invalid_request)
+        except HTTPError as error:
+            invalid_body = error.read().decode()
+            assert error.code == 400
+        else:
+            raise AssertionError("El formulario invalido debio responder 400")
+
+        assert 'class="message error"' in invalid_body
+        assert 'class="message success"' not in invalid_body
+        assert "Version de Odoo" in invalid_body
+        assert "Dominio HTTPS de Odoo" in invalid_body
+        assert "Token o API key" in invalid_body
+        assert "Correo del usuario de Odoo" in invalid_body
+        assert "Base de datos" in invalid_body
 
         request = Request(
             url,
