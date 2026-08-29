@@ -27,6 +27,13 @@ disponibles. Para revisar o instalar dependencias:
 uv run odoo-ai-manager doctor
 ```
 
+Para que un agente de IA haga el setup completo para una persona no tecnica,
+usa [`docs/initial-setup-prompt.md`](docs/initial-setup-prompt.md). Los
+scripts de bootstrap tambien se pueden descargar directamente:
+
+- [Windows PowerShell](https://raw.githubusercontent.com/guitartsword/odoo-ai-manager/main/scripts/bootstrap.ps1)
+- [macOS/Linux](https://raw.githubusercontent.com/guitartsword/odoo-ai-manager/main/scripts/bootstrap.sh)
+
 Configura la conexion con el formulario web local:
 
 ```powershell
